@@ -38,8 +38,8 @@ import funkin.backend.modding.Mods;
 //import funkin.backend.Highscore;
 import funkin.backend.Language;
 
-import funkin.scripting.ScriptableState;
-import funkin.scripting.ScriptableSubstate;
+import funkin.backend.scripting.ScriptableState;
+import funkin.backend.scripting.ScriptableSubstate;
 
 //import funkin.ui.*; //Psych-UI
 
