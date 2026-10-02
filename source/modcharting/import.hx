@@ -46,7 +46,7 @@ import funkin.backend.scripting.ScriptableSubstate;
 import funkin.objects.Alphabet;
 //import funkin.graphics.FunkinSprite;
 //import funkin.graphics.FlxFilteredSprite;
-import extensions.funkinvslice.vslice.ui.MainMenuState;
+import funkin.ui.mainmenu.MainMenuState;
 
 #if flxanimate
 import flxanimate.*;
