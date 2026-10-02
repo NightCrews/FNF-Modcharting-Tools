@@ -958,7 +958,7 @@ class ModchartEditorState extends #if (PSYCH && PSYCHVERSION >= "0.7") funkin.ui
 					opponentVocals.stop(); #end
 
 				#if (PSYCH && PSYCHVERSION >= "0.7")
-				funkin.data.stage.StageData.loadDirectory(PlayState.SONG);
+				funkin.backend.data.stage.StageData.loadDirectory(PlayState.SONG);
 				#elseif (PSYCH && !(PSYCHVERSION >= "0.7"))
 				StageData.loadDirectory(PlayState.SONG);
 				#end

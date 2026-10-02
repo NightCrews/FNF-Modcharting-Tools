@@ -9,22 +9,11 @@ import llua.State;
 import llua.Convert;
 #end
 
-#if LEATHER
-import funkin.play.states.PlayState;
-import game.Conductor;
-#if linc_luajit
-import modding.ModchartUtilities;
-#end
-import modding.scripts.languages.HScript;
-#end
-
-#if (PSYCH && PSYCHVERSION >= "0.7")
 import funkin.play.states.PlayState;
 #if LUA_ALLOWED
-import funkin.psychlua.LuaUtils;
-import funkin.psychlua.FunkinLua;
-import funkin.psychlua.HScript as FunkinHScript;
-#end
+import funkin.backend.psychlua.LuaUtils;
+import funkin.backend.psychlua.FunkinLua;
+import funkin.backend.psychlua.HScript as FunkinHScript;
 #end
 
 import modcharting.Modifier;
@@ -40,17 +29,17 @@ using StringTools;
 //for lua and hscript
 class ModchartFuncs
 {
-    public static function loadLuaFunctions(#if (PSYCH && PSYCHVERSION >= "0.7") funkin:FunkinLua #end)
+    public static function loadLuaFunctions(funkin:FunkinLua)
     {
         #if PSYCH
         #if LUA_ALLOWED
-        #if !(PSYCHVERSION >= "0.7")
+        /* #if !(PSYCHVERSION >= "0.7")
         for (funkin in PlayState.instance.luaArray)
         {
             #if hscript
             funkin.initHaxeModule();
             #end
-        #end
+        #end */
             Lua_helper.add_callback(funkin.lua, 'startMod', function(name:String, modClass:String, type:String = '', pf:Int = -1){
                 startMod(name,modClass,type,pf);
 
@@ -89,13 +78,13 @@ class ModchartFuncs
             Lua_helper.add_callback(funkin.lua, 'ease', function(beat:Float, time:Float, easeStr:String, argsAsString:String, ?tag:String = null){
                 ease(beat, time, easeStr, argsAsString, null, tag);                
             });
-            #if !(PSYCHVERSION >= "0.7") } #end
+            //#if !(PSYCHVERSION >= "0.7") } #end
             
-            #if (PSYCHVERSION >= "0.7")
+            //#if (PSYCHVERSION >= "0.7")
                 loadHaxeFunctions(funkin);
-            #end
+            //#end
         #end
-        #if !(PSYCHVERSION >= "0.7")
+        /* #if !(PSYCHVERSION >= "0.7")
             #if hscript
             if (FunkinLua.hscript != null)
             {
@@ -108,60 +97,14 @@ class ModchartFuncs
                 FunkinLua.hscript.variables.set('ModchartFile', ModchartFile);
             }
             #end
-        #end
-
-        #elseif (LEATHER && linc_luajit)
-        @:privateAccess
-        {
-            ModchartUtilities.instance.setLuaFunction('startMod', function(name:String, modClass:String, type:String = '', pf:Int = -1){
-                startMod(name,modClass,type,pf);
-
-                PlayState.instance.playfieldRenderer.modifierTable.reconstructTable(); //needs to be reconstructed for lua modcharts
-            });
-            ModchartUtilities.instance.setLuaFunction('setMod', function(name:String, value:Float){
-                setMod(name, value);
-            });
-            ModchartUtilities.instance.setLuaFunction('setSubMod', function(name:String, subValName:String, value:Float){
-                setSubMod(name, subValName,value);
-            });
-            ModchartUtilities.instance.setLuaFunction('setModTargetLane', function(name:String, value:Int){
-                setModTargetLane(name, value);
-            });
-            ModchartUtilities.instance.setLuaFunction('setModPlayfield', function(name:String, value:Int){
-                setModPlayfield(name,value);
-            });
-            ModchartUtilities.instance.setLuaFunction('addPlayfield', function(?x:Float = 0, ?y:Float = 0, ?z:Float = 0){
-                addPlayfield(x,y,z);
-            });
-            ModchartUtilities.instance.setLuaFunction('removePlayfield', function(idx:Int){
-                removePlayfield(idx);
-            });
-            ModchartUtilities.instance.setLuaFunction('tweenModifier', function(modifier:String, val:Float, time:Float, ease:String, ?tag:String = null){
-                tweenModifier(modifier,val,time,ease,null,tag);
-            });
-            ModchartUtilities.instance.setLuaFunction('tweenModifierSubValue', function(modifier:String, subValue:String, val:Float, time:Float, ease:String, ?tag:String = null){
-                tweenModifierSubValue(modifier,subValue,val,time,ease,null,tag);
-            });
-            ModchartUtilities.instance.setLuaFunction('setModEaseFunc', function(name:String, ease:String){
-                setModEaseFunc(name,ease);
-            });
-            ModchartUtilities.instance.setLuaFunction('setModifier', function(beat:Float, argsAsString:String){
-                set(beat, argsAsString);
-            });
-            ModchartUtilities.instance.setLuaFunction('easeModifier', function(beat:Float, time:Float, easeStr:String, argsAsString:String, ?tag:String = null){
-                ease(beat, time, easeStr, argsAsString, null, tag);           
-            });
-            ModchartUtilities.instance.setLuaFunction('ease', function(beat:Float, time:Float, easeStr:String, argsAsString:String, ?tag:String = null){
-                ease(beat, time, easeStr, argsAsString, null, tag);           
-            });
-        }
+        #end */
         #end
     }
 
     
-    public static function loadHaxeFunctions(#if PSYCH funkin:FunkinLua#end)
+    public static function loadHaxeFunctions(funkin:FunkinLua)
         {
-            #if (PSYCH && PSYCHVERSION >= "0.7")
+            //#if (PSYCH && PSYCHVERSION >= "0.7")
             #if HSCRIPT_ALLOWED
             FunkinHScript.initHaxeModule(funkin);
     
@@ -186,7 +129,7 @@ class ModchartFuncs
                 #end
             }
             #end
-            #elseif LEATHER
+            //#elseif LEATHER
             /*if(flixel.FlxG.state == funkin.play.states.PlayState.instance){
                 HScript.instance.interp.variables.set('PlayfieldRenderer', PlayfieldRenderer);
                 HScript.instance.interp.variables.set('ModchartUtil', ModchartUtil);
@@ -195,9 +138,9 @@ class ModchartFuncs
                 HScript.instance.interp.variables.set('NotePositionData', NotePositionData);
                 HScript.instance.interp.variables.set('ModchartFile', ModchartFile);
             }*/
-            #end
+            //#end
         }
-    #if (HSCRIPT_ALLOWED && PSYCH && PSYCHVERSION >= "0.7")
+    #if (HSCRIPT_ALLOWED) // && PSYCH&& PSYCHVERSION >= "0.7")
     public static function loadHScriptFunctions(parent:Dynamic)
     {
         #if HSCRIPT_ALLOWED

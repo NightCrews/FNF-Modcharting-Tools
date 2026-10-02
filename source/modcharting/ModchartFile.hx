@@ -17,7 +17,7 @@ import polymod.backends.PolymodAssets;
 import hscript.*;
 #end
 #if (HSCRIPT_ALLOWED && PSYCH && PSYCHVERSION >= "0.7")
-import funkin.psychlua.HScript as FunkinHScript;
+import funkin.backend.psychlua.HScript as FunkinHScript;
 #end
 import funkin.play.states.PlayState;
 using StringTools;
