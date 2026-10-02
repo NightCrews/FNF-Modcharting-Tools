@@ -8,22 +8,14 @@ import funkin.backend.ClientPrefs;
 import funkin.backend.Paths;
 import funkin.ui.transition.LoadingState;
 import funkin.backend.Difficulty;
-#if SCEModchartingTools
-import substates.MusicBeatSubstate;
-#else
 import funkin.ui.MusicBeatSubstate;
-#end
 import funkin.play.notes.Note;
-#if SCEModchartingTools
-import objects.StrumArrow;
-#else
 import funkin.play.notes.StrumNote;
-#end
 import funkin.play.song.Song;
 
 #if LUA_ALLOWED
-import funkin.psychlua.FunkinLua;
-import funkin.psychlua.HScript as FunkinHScript;
+import funkin.backend.psychlua.FunkinLua;
+import funkin.backend.psychlua.HScript as FunkinHScript;
 #end
 
 #if sys
