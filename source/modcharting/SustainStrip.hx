@@ -2,12 +2,10 @@ package modcharting;
 
 import flixel.graphics.tile.FlxDrawTrianglesItem.DrawData;
 import openfl.geom.Vector3D;
-#if LEATHER
-import game.Note;
-#elseif (PSYCH && PSYCHVERSION >= "0.7")
 import funkin.play.notes.Note;
-#else
-import Note;
+#if ne
+import funkin.graphics.shaders.RGBShader.RGBGraphics;
+import flixel.FlxCamera;
 #end
 import flixel.FlxStrip;
 
@@ -27,14 +25,22 @@ class SustainStrip extends FlxStrip implements IFlxDestroyable
     ];
 
     private var daNote:Note;
+    #if ne
+    public var rgbShader:RGBGraphics = new RGBGraphics();
+    #end
 
     override public function new(daNote:Note)
     {
         this.daNote = daNote;
         daNote.alpha = 1;
         super(0,0);
-        loadGraphic(daNote.updateFramePixels());
+        #if ne
+        rgbShader = daNote.rgbShader;
+        #end
         shader = daNote.shader;
+
+        loadGraphic(daNote.updateFramePixels());
+
         for (uv in noteUV)
         {
             uvtData.push(uv);
@@ -44,25 +50,70 @@ class SustainStrip extends FlxStrip implements IFlxDestroyable
             indices.push(ind);
     }
 
+    var _alpha:Float = 1;
     // TODO: check this for cases when zoom is less than initial zoom...
-	public function drawData(cameraStuff:Array<FlxCamera>):Void
+    public function drawData(cameraStuff:Array<FlxCamera>):Void
     {
         if (alpha <= 0 || !visible || graphic == null || vertices == null)
             return;
 
-        for (camera in cameraStuff)
+        // Iterate every camera rather than assigning `cameras` and using the single
+        // `camera` field.
+        //
+        // `FlxBasic.camera` is `_cameras[0]` (FlxBasic.hx:184), so setting `cameras`
+        // and reading `camera` draws only the first camera. That was fine before
+        // because a sustain strip lives on the default camera, but it breaks as soon
+        // as the note is assigned to a different one - the strip then draws on the
+        // wrong camera, and with `cacheGPU` on it ends up on a draw item the GPU has
+        // no texture bound for, so the sustain disappears entirely.
+        //
+        // Loop and draw per camera instead, which is what this did originally.
+        for (cam in cameraStuff)
         {
-            if (!camera.visible || !camera.exists/*  || !isOnScreen(camera) */)
-                continue;
+            if (cam == null || !cam.visible || !cam.exists) continue;
 
-            getScreenPosition(_point, camera).subtractPoint(offset);
+            getScreenPosition(_point, cam).subtractPoint(offset);
+
+            #if ne
+            _alpha = this.alpha;
+            rgbShader.alpha = _alpha;
+            this.alpha = 1;
+            #end
+
             #if !flash
-            camera.drawTriangles(graphic, vertices, indices, uvtData, colors, _point, blend, repeat, antialiasing, colorTransform, shader);
+            cam.drawTriangles(graphic, vertices, indices, uvtData, colors, _point, blend, repeat, antialiasing, colorTransform, shader);
             #else
-            camera.drawTriangles(graphic, vertices, indices, uvtData, colors, _point, blend, repeat, antialiasing);
+            cam.drawTriangles(graphic, vertices, indices, uvtData, colors, _point, blend, repeat, antialiasing);
+            #end
+
+            #if ne
+            this.alpha = _alpha;
+            #end
+
+            #if ne
+            if (rgbShader != null)
+                rgbShader.pushTriangles(cam, indices.length);
             #end
         }
     }
+
+    /* #if ne
+    override function drawComplex(camera:FlxCamera):Void
+    {
+        super.drawComplex(camera);
+        
+        if (this.rgbShader != null)
+            this.rgbShader.pushTriangles(camera);
+    }
+
+    override function drawSimple(camera:FlxCamera)
+    {
+        super.drawSimple(camera);
+
+        if (this.rgbShader != null)
+            this.rgbShader.pushTriangles(camera);
+    }
+    #end */
 
     private static var rVerts:Array<Float> = [];
     //private static var rYOffset:Float = -1;
@@ -92,7 +143,7 @@ class SustainStrip extends FlxStrip implements IFlxDestroyable
             rVerts.push(thisNotePos.x+(daNote.frameWidth*(1/-thisNotePos.z)*nextNotePos.scaleX));
             rVerts.push(thisNotePos.y);
         }
-        else 
+        else
         {
             rVerts.push(thisNotePos.x);
             rVerts.push(thisNotePos.y); //fliped this with the down ones (last) to test if it bugs of it fixes itself

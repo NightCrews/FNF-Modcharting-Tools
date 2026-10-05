@@ -108,7 +108,7 @@ class PlayfieldRenderer extends funkin.graphics.FunkinSprite implements IFlxDest
 
 	override public function draw()
 	{
-		if (alpha <= 0 || !visible || !active)
+		if (!visible || !active)
 			return;
 
 		if (inEditor)
@@ -142,9 +142,14 @@ class PlayfieldRenderer extends funkin.graphics.FunkinSprite implements IFlxDest
 		strum.x = strumData.x;
 		strum.y = strumData.y;
 		// Add Z to your strumNoteType if you want it youself!
-		// strum.z = strumData.z;
+		//strum.z = strumData.z;
 		strum.angle = strumData.angle;
+		#if ne
+		strum.manualAlpha = true;
+		strum.rgbShader.alpha = strumData.alpha;
+		#else
 		strum.alpha = strumData.alpha;
+		#end
 		strum.scale.x = strumData.scaleX;
 		strum.scale.y = strumData.scaleY;
 		strum.skew.x = strumData.skewX;
@@ -179,7 +184,12 @@ class PlayfieldRenderer extends funkin.graphics.FunkinSprite implements IFlxDest
 		daNote.y = noteData.y;
 		daNote.z = noteData.z;
 		daNote.angle = noteData.angle;
+		#if ne
+		daNote.manualAlpha = true;
+		daNote.rgbShader.alpha = noteData.alpha;
+		#else
 		daNote.alpha = noteData.alpha;
+		#end
 		daNote.scale.x = noteData.scaleX;
 		daNote.scale.y = noteData.scaleY;
 		daNote.skew.x = noteData.skewX;
@@ -255,6 +265,31 @@ class PlayfieldRenderer extends funkin.graphics.FunkinSprite implements IFlxDest
 	}
 
 	private static var rNotePositions:Array<NotePositionData> = [];
+
+	/**
+	 * How far past the strumline a note may still be drawn, in the same units
+	 * `getNoteCurPos()` returns (pixels, scroll speed already applied).
+	 *
+	 * `NoteGroup` culls with a 1000ms time limit; this is the matching distance. Notes
+	 * further out cannot contribute a visible pixel, so they are skipped outright
+	 * instead of running the whole modifier/perspective pipeline for them.
+	 */
+	static inline final pfNoteCutoff:Float = 4000;
+
+	/**
+	 * First note that can still be on screen.
+	 *
+	 * `notes` is sorted by strumTime and the song position only ever moves forward, so
+	 * this only ever advances - the classic sliding window. Previously the loop walked
+	 * all members every frame, which on chart-heavy songs ran the full modifier +
+	 * perspective pipeline (twice more per sustain, via `getSustainPoint()`) for
+	 * thousands of notes nowhere near the playfield.
+	 *
+	 * `NoteGroup.startIndex` would be the natural place for this, but `notes` is typed
+	 * as `FlxTypedGroup<Note>` because the modchart editor passes a plain group, so the
+	 * renderer keeps its own index instead.
+	 */
+	private var pfStartIndex:Int = 0;
 	private function getNotePositions()
 	{
 		//var notePositions:Array<NotePositionData> = [];
@@ -262,6 +297,11 @@ class PlayfieldRenderer extends funkin.graphics.FunkinSprite implements IFlxDest
 		
 		if (notes == null || notes.members == null || playfields == null || strumGroup == null || strumGroup.members == null)
 			return rNotePositions;
+
+		// The window is meaningless if the note group was swapped out (song restart,
+		// editor reload) and can outrun a shorter list.
+		if (pfStartIndex > notes.members.length)
+			pfStartIndex = 0;
 		
 		for (pf in 0...playfields.length)
 		{
@@ -270,52 +310,60 @@ class PlayfieldRenderer extends funkin.graphics.FunkinSprite implements IFlxDest
 				//final strumData = getDataForStrum(i, pf);
 				rNotePositions.push(getDataForStrum(i, pf));
 			}
-			for (i in 0...notes.members.length)
+			for (i in pfStartIndex...notes.members.length)
 			{
-				if (notes.members[i] == null) continue; // skip null notes
+				var daNote = notes.members[i];
+				if (daNote == null)
 				{
-					var songSpeed = getCorrectScrollSpeed();
-
-					var lane = getLane(i);
-
-					var noteDist = getNoteDist(i);
-					noteDist = modifierTable.applyNoteDistMods(noteDist, lane, pf);
-
-					var sustainTimeThingy:Float = 0;
-
-					// just causes too many issues lol, might fix it at some point
-					/*if (notes.members[i].animation.curAnim.name.endsWith('end') && ClientPrefs.data.downScroll)
-						{
-							if (noteDist > 0)
-								sustainTimeThingy = (ModchartUtil.getFakeCrochet()/4)/2; //fix stretched sustain ends (downscroll)
-							//else 
-								//sustainTimeThingy = (-ModchartUtil.getFakeCrochet()/4)/songSpeed;
-					}*/
-
-					var curPos = getNoteCurPos(i, sustainTimeThingy);
-					curPos = Std.int(modifierTable.applyCurPosMods(lane, curPos, pf));
-
-					if ((notes.members[i].wasGoodHit || (notes.members[i].prevNote.wasGoodHit))
-						&& curPos >= 0
-						&& notes.members[i].isSustainNote)
-						curPos = 0; // sustain clip
-
-					var incomingAngle:Array<Float> = modifierTable.applyIncomingAngleMods(lane, curPos, pf);
-					if (noteDist < 0)
-						incomingAngle[0] += 180; // make it match for both scrolls
-
-					// get the general note path
-					NoteMovement.setNotePath(notes.members[i], lane, songSpeed, curPos, noteDist, incomingAngle[0], incomingAngle[1]);
-
-					// save the position data
-					var noteData = createDataFromNote(i, pf, curPos, noteDist, incomingAngle);
-
-					// add offsets to data with modifiers
-					modifierTable.applyNoteMods(noteData, lane, curPos, pf);
-
-					// add position data to list
-					rNotePositions.push(noteData);
+					// keep the window aligned if there is a hole in the group
+					if (i == pfStartIndex) pfStartIndex++;
+					continue;
 				}
+
+				// Cheap gate first: only the position, no modifiers or perspective yet.
+				// `curPos` is negative ahead of the song position and positive behind
+				// it, so once we reach notes in the future nothing further can be drawn
+				// and this loop must stop.
+				final rawCurPos = getNoteCurPos(i, 0);
+				if (rawCurPos < -pfNoteCutoff) break;
+
+				// Advance the window past notes that are already gone. `curPos` can still
+				// be pinned to 0 further down for sustains that were hit, so only skip
+				// notes far enough in the past that no modifier could pull them back.
+				if (rawCurPos > pfNoteCutoff)
+				{
+					pfStartIndex = i + 1;
+					continue;
+				}
+
+				var songSpeed = getCorrectScrollSpeed();
+				var lane = getLane(i);
+				var noteDist = getNoteDist(i);
+				noteDist = modifierTable.applyNoteDistMods(noteDist, lane, pf);
+
+				var curPos = Std.int(rawCurPos);
+				curPos = Std.int(modifierTable.applyCurPosMods(lane, curPos, pf));
+
+				if ((daNote.wasGoodHit || (daNote.prevNote.wasGoodHit))
+					&& curPos >= 0
+					&& daNote.isSustainNote)
+					curPos = 0; // sustain clip
+
+				var incomingAngle:Array<Float> = modifierTable.applyIncomingAngleMods(lane, curPos, pf);
+				if (noteDist < 0)
+					incomingAngle[0] += 180; // make it match for both scrolls
+
+				// get the general note path
+				NoteMovement.setNotePath(daNote, lane, songSpeed, curPos, noteDist, incomingAngle[0], incomingAngle[1]);
+
+				// save the position data
+				var noteData = createDataFromNote(i, pf, curPos, noteDist, incomingAngle);
+
+				// add offsets to data with modifiers
+				modifierTable.applyNoteMods(noteData, lane, curPos, pf);
+
+				// add position data to list
+				rNotePositions.push(noteData);
 			}
 		}
 		// sort by z before drawing
@@ -333,7 +381,7 @@ class PlayfieldRenderer extends funkin.graphics.FunkinSprite implements IFlxDest
 
 	private function drawStrum(noteData:NotePositionData)
 	{
-		if (noteData.alpha <= 0 || !strumGroup.members[noteData.index].visible || !strumGroup.members[noteData.index].active)
+		if (!strumGroup.members[noteData.index].visible || !strumGroup.members[noteData.index].active)
 			return;
 		final changeX:Bool = ((noteData.z > 0 || noteData.z < 0) && noteData.z != 0);
 		final strumNote = strumGroup.members[noteData.index];
@@ -501,8 +549,8 @@ class PlayfieldRenderer extends funkin.graphics.FunkinSprite implements IFlxDest
 			/*daNote.prevNote.scale.y *= Conductor.stepCrochet / 100 * 1.05;
 				if(PlayState.isPixelStage)
 					daNote.scale.y *= PlayState.daPixelZoom; */
-			/*noteData.x = thisNotePos.x;
-				noteData.y = thisNotePos.y; */
+/*noteData.x = thisNotePos.x;
+ 				noteData.y = thisNotePos.y; */
 			noteData.scaleX *= (1 / -thisNotePos.z);
 			noteData.scaleY *= (1 / -thisNotePos.z);
 			addDataToNote(noteData, daNote);
@@ -527,6 +575,22 @@ class PlayfieldRenderer extends funkin.graphics.FunkinSprite implements IFlxDest
 				else #end drawSustainNote(noteData);
 			}
 		}
+
+		// Recycle the frame's position data now that everything has consumed it.
+		//
+		// `NotePositionData.get()` pulls from a static `FlxPool`, but nothing ever put
+		// anything back, so the pool always missed and `get()` fell through to `new`.
+		// That is once per strum and note per playfield, plus two more per sustain from
+		// `getSustainPoint()` - so every frame threw away `playfields * notes` (times
+		// three for sustains) objects and rebuilt them, which is the garbage spike that
+		// shows up as lag on chart-heavy songs such as Blue-dream and Galactic-storm.
+		//
+		// Nothing holds on to these past the draw: the position data feeds modifiers
+		// and `constructVertices()` immediately, and the sustain points are read out as
+		// `Vector3D` values rather than kept by reference. Returning them here lets the
+		// pool hand the same instances back next frame instead of allocating.
+		for (noteData in notePositions)
+			NotePositionData.put(noteData);
 	}
 
 	function getSustainPoint(noteData:NotePositionData, timeOffset:Float):NotePositionData
