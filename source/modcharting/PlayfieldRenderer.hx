@@ -302,7 +302,7 @@ class PlayfieldRenderer extends funkin.graphics.FunkinSprite implements IFlxDest
 		// editor reload) and can outrun a shorter list.
 		if (pfStartIndex > notes.members.length)
 			pfStartIndex = 0;
-		
+
 		for (pf in 0...playfields.length)
 		{
 			for (i in 0...strumGroup.members.length)
@@ -310,7 +310,23 @@ class PlayfieldRenderer extends funkin.graphics.FunkinSprite implements IFlxDest
 				//final strumData = getDataForStrum(i, pf);
 				rNotePositions.push(getDataForStrum(i, pf));
 			}
-			for (i in pfStartIndex...notes.members.length)
+
+			// The cursor is only sound while the note group is ordered oldest-first.
+			// PlayState guarantees that, but the modchart editor does not: it spawns with
+			// `notes.insert(0, note)`, so the group is newest-first, and `clearNotesAfter()`
+			// / the pass-by loop splice members out of it as the playhead advances. Every
+			// one of those shifts later indices down while the cursor keeps climbing, so it
+			// drifts past the notes it is meant to be tracking - the loop then breaks on its
+			// first `curPos < -pfNoteCutoff` test and the playfield comes up blank, in either
+			// direction, as soon as the window desyncs.
+			//
+			// The editor only ever holds the notes near the playhead (it spawns 2000 ms
+			// ahead and clears behind), so it scans the whole group per frame and filters on
+			// both ends instead. Same work as before per note - no modifiers, no perspective,
+			// no allocation for anything off screen - just without a cursor to keep in sync.
+			final scanAll:Bool = inEditor;
+			final first:Int = scanAll ? 0 : pfStartIndex;
+			for (i in first...notes.members.length)
 			{
 				var daNote = notes.members[i];
 				if (daNote == null)
@@ -325,7 +341,11 @@ class PlayfieldRenderer extends funkin.graphics.FunkinSprite implements IFlxDest
 				// it, so once we reach notes in the future nothing further can be drawn
 				// and this loop must stop.
 				final rawCurPos = getNoteCurPos(i, 0);
-				if (rawCurPos < -pfNoteCutoff) break;
+				if (rawCurPos < -pfNoteCutoff)
+				{
+					if (!scanAll) break;
+					continue;
+				}
 
 				// Advance the window past notes that are already gone. `curPos` can still
 				// be pinned to 0 further down for sustains that were hit, so only skip
@@ -506,8 +526,14 @@ class PlayfieldRenderer extends funkin.graphics.FunkinSprite implements IFlxDest
 
 		if (inEditor)
 		{
+			// Use the same path the game does. `SustainStrip.draw()` is inherited straight
+			// from `FlxStrip` and only issues `camera.drawTriangles(...)` - it never touches
+			// `rgbShader`, so every sustain in the editor rendered untinted, and it gated on
+			// `alpha == 0` with no RGB handling at all. `drawData()` is the version that
+			// hands the strip's alpha to the shader and calls `pushTriangles()` afterwards,
+			// which is where the per-draw-item RGB data gets written.
 			daNote.mesh.cameras = this.cameras;
-			daNote.mesh.draw();
+			daNote.mesh.drawData(this.cameras);
 		}
 		else if (daNote.reduce)
 		{

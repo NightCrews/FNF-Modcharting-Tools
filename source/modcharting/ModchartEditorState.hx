@@ -352,6 +352,11 @@ class ModchartEditorState extends #if (PSYCH && PSYCHVERSION >= "0.7") funkin.ui
 	public var playerStrums:FlxTypedGroup<StrumNoteType>;
 	public var unspawnNotes:Array<Note> = [];
 	public var loadedNotes:Array<Note> = []; // stored notes from the chart that unspawnNotes can copy from
+	/**
+	 * Previous frame's song position, used to notice the playhead jumping backwards.
+	 * @see rebuildNoteWindow
+	 **/
+	private var lastSongPosition:Float = 0;
 	public var vocals:FlxSound;
 	#if (PSYCH && PSYCHVERSION >= "0.7.3")
 	public var opponentVocals:FlxSound;
@@ -799,13 +804,28 @@ class ModchartEditorState extends #if (PSYCH && PSYCHVERSION >= "0.7") funkin.ui
 
 			while (unspawnNotes.length > 0 && unspawnNotes[0].strumTime - Conductor.songPosition < time)
 			{
-				var dunceNote:Note = unspawnNotes[0];
+				// `unspawnNotes` is consumed strictly front to back, so the note about to be
+				// spawned is always at index 0. This used to take it with `indexOf()` and then
+				// `splice()` that index - a linear search per note on top of the array shift,
+				// which is what made scrubbing a chart-heavy song stutter.
+				var dunceNote:Note = unspawnNotes.shift();
 				notes.insert(0, dunceNote);
 				#if PSYCH
 				dunceNote.spawned = true;
+				// `Note.setup()` leaves every new note `active = false` (see the
+				// `if (!inEditor)` branch), and `PlayfieldRenderer.drawNote()` bails out on
+				// inactive notes. In PlayState `NoteGroup` flips both flags on spawn, but
+				// this editor inserts notes directly, so `active` has to be set here or the
+				// renderer skips every single one of them.
+				dunceNote.active = true;
+				// `visible` needs the same treatment. `clearNotesBefore()`/`clearNotesAfter()`
+				// and the pass-by loop hide a note before splicing it out, and only
+				// `rebuildNoteWindow()` puts it back in `unspawnNotes`. Without restoring the
+				// flag on spawn, any note the playhead had already gone past stays invisible
+				// for the rest of the session - which is why scrubbing backwards left an
+				// empty playfield.
+				dunceNote.visible = true;
 				#end
-				var index:Int = unspawnNotes.indexOf(dunceNote);
-				unspawnNotes.splice(index, 1);
 			}
 		}
 
@@ -856,6 +876,10 @@ class ModchartEditorState extends #if (PSYCH && PSYCHVERSION >= "0.7") funkin.ui
 				daNote.visible = false;
 
 				// daNote.kill();
+				// Splice, so the group stays small. The editor's renderer does not use
+				// `pfStartIndex` (it scans and filters each frame instead), so renumbering
+				// the members on the way out costs it nothing - and leaving holes instead
+				// would make every `rebuildNoteWindow()` walk the whole chart.
 				notes.remove(daNote, true);
 				// daNote.destroy();
 			}
@@ -908,11 +932,18 @@ class ModchartEditorState extends #if (PSYCH && PSYCHVERSION >= "0.7") funkin.ui
 			}
 		}
 
+		// Notes that have already been played are spliced out of `unspawnNotes`, so scrolling
+		// back leaves nothing to spawn from and the playfield stays empty. Rebuild the
+		// window from `loadedNotes`, which still holds every note.
+		if (Conductor.songPosition < lastSongPosition - 1)
+		{
+			rebuildNoteWindow();
+		}
+		lastSongPosition = Conductor.songPosition;
+
 		if (dirtyUpdateNotes)
 		{
-			clearNotesAfter(Conductor.songPosition + 2000); // so scrolling back doesnt lag shit
-			unspawnNotes = loadedNotes.copy();
-			clearNotesBefore(Conductor.songPosition);
+			rebuildNoteWindow();
 			dirtyUpdateNotes = false;
 		}
 		if (dirtyUpdateModifiers)
@@ -1097,6 +1128,61 @@ class ModchartEditorState extends #if (PSYCH && PSYCHVERSION >= "0.7") funkin.ui
 		super.draw();
 	}
 
+	/**
+	 * Rebuilds the note window around the current playhead.
+	 *
+	 * `notes.remove(note, true)` only splices the entry out of the group - it does not
+	 * destroy the `Note` - so `loadedNotes` keeps a usable reference to every note in the
+	 * chart. That makes it the master list to reset from, which is what both the
+	 * note-editing path and a backwards seek need.
+	 *
+	 * The 2000 ms window matches the spawn window in `update()`, so afterwards the spawn
+	 * loop refills `notes` with everything just ahead of the playhead and leaves the rest
+	 * queued in `unspawnNotes`.
+	 **/
+	private function rebuildNoteWindow()
+	{
+		if (loadedNotes.length == 0) return;
+
+		clearNotesAfter(Conductor.songPosition + 2000); // so scrolling back doesnt lag shit
+
+		// Rebuild the spawn queue in one pass rather than copying the whole chart and then
+		// walking it again to drop everything behind the playhead. `loadedNotes` is sorted
+		// by strumTime (see `generateSong`), so the notes that are gone form a prefix and
+		// `clearNotesBefore()` used to strip them back out with an `Array.remove()` per
+		// entry - linear search each, so scrubbing a 4000 note chart was quadratic. Then
+		// `unspawnNotes.indexOf()` in the spawn loop pays that cost again per note.
+		// `skipTo` is that prefix length, found with a scan that does not move anything.
+		var skipTo:Int = findFirstNoteAfter(Conductor.songPosition);
+
+		unspawnNotes = [];
+		for (i in skipTo...loadedNotes.length)
+			unspawnNotes.push(loadedNotes[i]);
+	}
+
+	/**
+	 * Index of the first note in `loadedNotes` that is not already behind `time`.
+	 *
+	 * `loadedNotes` is ordered by strumTime, so this is a plain scan and the result is
+	 * the length of the "already played" prefix. Every note in it is left untouched -
+	 * hidden and inactive - so it can simply be skipped instead of searched for and
+	 * removed one at a time.
+	 */
+	private function findFirstNoteAfter(time:Float):Int
+	{
+		var lo:Int = 0;
+		var hi:Int = loadedNotes.length;
+		while (lo < hi)
+		{
+			final mid:Int = (lo + hi) >> 1;
+			if (loadedNotes[mid].strumTime + 350 < time)
+				lo = mid + 1;
+			else
+				hi = mid;
+		}
+		return lo;
+	}
+
 	public function clearNotesBefore(time:Float)
 	{
 		var i:Int = unspawnNotes.length - 1;
@@ -1120,7 +1206,7 @@ class ModchartEditorState extends #if (PSYCH && PSYCHVERSION >= "0.7") funkin.ui
 		while (i >= 0)
 		{
 			var daNote:Note = notes.members[i];
-			if (daNote.strumTime + 350 < time)
+			if (daNote != null && daNote.strumTime + 350 < time)
 			{
 				daNote.active = false;
 				daNote.visible = false;
@@ -1140,7 +1226,7 @@ class ModchartEditorState extends #if (PSYCH && PSYCHVERSION >= "0.7") funkin.ui
 		while (i >= 0)
 		{
 			var daNote:Note = notes.members[i];
-			if (daNote.strumTime > time)
+			if (daNote != null && daNote.strumTime > time)
 			{
 				daNote.active = false;
 				daNote.visible = false;
@@ -1453,7 +1539,13 @@ class ModchartEditorState extends #if (PSYCH && PSYCHVERSION >= "0.7") funkin.ui
 
 			strumLineNotes.add(babyArrow);
 			#if PSYCH
-			babyArrow.playerPosition();
+			// Pass the position in explicitly. `StrumNote.position` reads and writes
+			// `parent.position`, and these arrows are parented to a plain `FlxTypedGroup`
+			// (unlike PlayState, which parents them to a real `Strumline`). So the getter
+			// finds no `position` field and the setter above ran while `parent` was still
+			// null - meaning `playerPosition()` fell through to its RIGHT default and every
+			// arrow stayed on `TRUE_STRUM_X`, stacked on the right.
+			babyArrow.playerPosition(position);
 			#end
 		}
 	}
