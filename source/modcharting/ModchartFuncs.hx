@@ -9,7 +9,6 @@ import llua.State;
 import llua.Convert;
 #end
 
-import funkin.play.states.PlayState;
 #if LUA_ALLOWED
 import funkin.backend.psychlua.LuaUtils;
 import funkin.backend.psychlua.FunkinLua;

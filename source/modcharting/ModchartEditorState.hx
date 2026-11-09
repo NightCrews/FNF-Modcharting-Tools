@@ -38,7 +38,6 @@ import flixel.addons.ui.FlxUISlider;
 import flixel.addons.ui.FlxUITabMenu;
 import flixel.util.FlxDestroyUtil;
 import flixel.addons.transition.FlxTransitionableState;
-import funkin.play.states.PlayState;
 import flixel.addons.ui.FlxUIDropDownMenu;
 import funkin.ui.MusicBeatSubstate;
 import funkin.play.notes.CastNote;

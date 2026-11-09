@@ -19,7 +19,6 @@ import hscript.*;
 #if (HSCRIPT_ALLOWED && PSYCH && PSYCHVERSION >= "0.7")
 import funkin.backend.psychlua.HScript as FunkinHScript;
 #end
-import funkin.play.states.PlayState;
 using StringTools;
 
 typedef ModchartJson = 

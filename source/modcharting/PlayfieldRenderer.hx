@@ -20,7 +20,6 @@ import game.Conductor;
 #elseif (PSYCH && PSYCHVERSION >= "0.7")
 import funkin.play.notes.Note;
 import funkin.play.notes.StrumNote;
-import funkin.play.states.PlayState;
 #else
 import PlayState;
 import Note;

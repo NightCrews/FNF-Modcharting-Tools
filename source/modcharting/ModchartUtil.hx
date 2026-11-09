@@ -4,7 +4,6 @@ import flixel.math.FlxAngle;
 import lime.math.Vector2;
 import openfl.geom.Vector3D;
 
-import funkin.play.states.PlayState;
 import funkin.play.notes.Note;
 
 using StringTools;

@@ -4,7 +4,6 @@ package modcharting;
 import funkin.play.states.PlayState;
 import game.Note;
 #elseif (PSYCH && PSYCHVERSION >= "0.7")
-import funkin.play.states.PlayState;
 import funkin.play.notes.Note;
 #else
 import PlayState;

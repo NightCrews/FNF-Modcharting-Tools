@@ -41,7 +41,6 @@ import funkin.ui.MusicBeatSubstate;
 import funkin.play.notes.Note;
 import funkin.play.notes.StrumNote;
 import funkin.play.song.Song;
-import funkin.play.states.PlayState;
 #else
 import Section.SwagSection;
 import Song;
