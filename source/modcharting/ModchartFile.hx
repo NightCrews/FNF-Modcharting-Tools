@@ -453,8 +453,8 @@ class CustomModifierScript
 		interp.variables.set('FlxTimer', flixel.util.FlxTimer);
 		interp.variables.set('FlxTween', flixel.tweens.FlxTween);
 		interp.variables.set('FlxEase', flixel.tweens.FlxEase);
-		interp.variables.set('PlayState', #if (PSYCH && PSYCHVERSION >= "0.7") funkin.play.states.PlayState #else PlayState #end);
-		interp.variables.set('game', #if (PSYCH && PSYCHVERSION >= "0.7") funkin.play.states.PlayState.instance #else PlayState.instance #end);
+		interp.variables.set('PlayState', #if (PSYCH && PSYCHVERSION >= "0.7") funkin.play.PlayState #else PlayState #end);
+		interp.variables.set('game', #if (PSYCH && PSYCHVERSION >= "0.7") funkin.play.PlayState.instance #else PlayState.instance #end);
 		interp.variables.set('Paths', #if (PSYCH && PSYCHVERSION >= "0.7") funkin.backend.Paths #else Paths #end);
 		interp.variables.set('Conductor', #if (PSYCH && PSYCHVERSION >= "0.7") funkin.backend.Conductor #else Conductor #end);
         interp.variables.set('StringTools', StringTools);

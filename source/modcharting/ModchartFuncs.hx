@@ -129,7 +129,7 @@ class ModchartFuncs
             }
             #end
             //#elseif LEATHER
-            /*if(flixel.FlxG.state == funkin.play.states.PlayState.instance){
+            /*if(flixel.FlxG.state == funkin.play.PlayState.instance){
                 HScript.instance.interp.variables.set('PlayfieldRenderer', PlayfieldRenderer);
                 HScript.instance.interp.variables.set('ModchartUtil', ModchartUtil);
                 HScript.instance.interp.variables.set('Modifier', Modifier);

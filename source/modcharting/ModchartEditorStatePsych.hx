@@ -23,7 +23,7 @@ import flixel.addons.ui.FlxUITabMenu;
 import flixel.util.FlxDestroyUtil;
 
 #if LEATHER
-import funkin.play.states.PlayState;
+import funkin.play.PlayState;
 import game.Song;
 import game.Section.SwagSection;
 import game.Note;
