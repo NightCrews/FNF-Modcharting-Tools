@@ -1,7 +1,7 @@
 
 import flixel.addons.ui.FlxUIDropDownMenu;
 import funkin.play.song.Song.SwagSection;
-import funkin.play.states.PlayState;
+import funkin.play.PlayState;
 import funkin.backend.CoolUtil;
 import funkin.backend.Conductor;
 import funkin.backend.ClientPrefs;

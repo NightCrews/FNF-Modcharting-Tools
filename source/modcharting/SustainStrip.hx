@@ -4,7 +4,7 @@ import flixel.graphics.tile.FlxDrawTrianglesItem.DrawData;
 import openfl.geom.Vector3D;
 import funkin.play.notes.Note;
 #if ne
-import funkin.graphics.shaders.RGBShader.RGBGraphics;
+import funkin.graphics.shaders.RGBShaderHSV.RGBGraphics;
 import flixel.FlxCamera;
 #end
 import flixel.FlxStrip;
@@ -27,6 +27,16 @@ class SustainStrip extends FlxStrip implements IFlxDestroyable
     private var daNote:Note;
     #if ne
     public var rgbShader:RGBGraphics = new RGBGraphics();
+    public var colorSwap(get, set):RGBGraphics;
+    inline private function get_colorSwap()
+        return rgbShader;
+    inline private function set_colorSwap(v:RGBGraphics)
+    {
+        if (rgbShader != null)
+            return rgbShader = v;
+        trace('RGBGraphic is NULL, cannot set colorSwap');
+        return null;
+    }
     #end
 
     override public function new(daNote:Note)

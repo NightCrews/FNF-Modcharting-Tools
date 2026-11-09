@@ -8,7 +8,7 @@ import sys.io.*;
 import js.html.*;
 #end
 
-import funkin.play.states.PlayState;
+import funkin.play.PlayState;
 #end
 
 #if (!macro)

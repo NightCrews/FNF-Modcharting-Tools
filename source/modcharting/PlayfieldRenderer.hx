@@ -393,8 +393,16 @@ class PlayfieldRenderer extends funkin.graphics.FunkinSprite implements IFlxDest
 				return -1;
 			else if (a.z > b.z)
 				return 1;
-			else
-				return 0;
+			// 같은 z에서는 sustain이 노트보다 먼저 그려져야 노트 뒤에 깔린다.
+			// z가 동률이면 정렬 결과가 불안정해서 스트립이 노트 앞으로 나오기도 한다.
+			if (!a.isStrum && !b.isStrum)
+			{
+				final aSustain:Bool = notes.members[a.index] != null && notes.members[a.index].isSustainNote;
+				final bSustain:Bool = notes.members[b.index] != null && notes.members[b.index].isSustainNote;
+				if (aSustain != bSustain)
+					return aSustain ? -1 : 1;
+			}
+			return 0;
 		});
 		return rNotePositions;
 	}
